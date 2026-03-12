@@ -10,16 +10,15 @@ class RewardLogCallback(BaseCallback):
         self.episode_reward_sum = 0
     
     def _on_step(self):
-        # Zbieraj nagrody
         reward = self.locals['rewards'][0]
         self.step_rewards.append(reward)
         self.episode_reward_sum += reward
         
-        # Loguj średnią za 100 kroków
         if self.num_timesteps % 100 == 0:
             self.logger.record("custom/reward_mean_100", np.mean(self.step_rewards[-100:]))
+            self.logger.record("custom/current_episode_sum", self.episode_reward_sum)
+            self.logger.record("custom/reward_sum_100", np.sum(self.step_rewards[-100:]))
         
-        # Loguj sumę na koniec epizodu
         if self.locals['dones'][0]:
             self.logger.record("custom/episode_reward_sum", self.episode_reward_sum)
             self.episode_reward_sum = 0

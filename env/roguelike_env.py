@@ -52,7 +52,7 @@ class RogueLikeEnv(gym.Env):
         self.socket.setsockopt(zmq.RCVTIMEO, 5000)
         self.socket.setsockopt(zmq.LINGER, 0)
         self.socket.connect("tcp://localhost:5555")
-        self.action_space = spaces.Discrete(4)
+        self.action_space = spaces.Discrete(5)
         self.observation_space = spaces.Box(low=0, high=255, shape=(483,), dtype=np.float32)
 
     def step(self, action):
