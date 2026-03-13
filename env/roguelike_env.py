@@ -13,7 +13,7 @@ class RogueLikeEnv(gym.Env):
         self.socket.setsockopt(zmq.LINGER, 0)
         self.socket.connect("tcp://localhost:5555")
         self.action_space = spaces.Discrete(5)
-        self.observation_space = spaces.Box(low=0, high=255, shape=(483,), dtype=np.float32)
+        self.observation_space = spaces.Box(low=0, high=255, shape=(498,), dtype=np.float32)
 
     def step(self, action):
         self.socket.send_string(str(action))
@@ -24,14 +24,20 @@ class RogueLikeEnv(gym.Env):
         extras = np.array([response_data["hp"], response_data["playerX"], response_data["playerY"]], dtype=np.float32)
         grid = response_data["grid"]
         grid_flat = np.array(grid, dtype=np.float32).flatten()
-        observation = np.concatenate((grid_flat, extras))
+        enemies = response_data["enemies"]
+        enemies_values = []
+        for e in enemies:
+            enemies_values.extend([e['type'], e['x'], e['y']])
+
+        enemies_flat = np.array(enemies_values, dtype=np.float32)
+        observation = np.concatenate((enemies_flat,grid_flat, extras))
         reward = response_data["reward"]
         done = not response_data["alive"]
         info = {}
         return observation, reward, done, False, info
     
     def reset(self, seed=None, options=None):
-        self.socket.send_string("0")
+        self.socket.send_string("reset")
         #print("Sent reset command: '0'")
         response = self.socket.recv_string()
         response_data = json.loads(response)
@@ -39,7 +45,14 @@ class RogueLikeEnv(gym.Env):
         extras = np.array([response_data["hp"], response_data["playerX"], response_data["playerY"]], dtype=np.float32)
         grid = response_data["grid"]
         grid_flat = np.array(grid, dtype=np.float32).flatten()
-        observation = np.concatenate((grid_flat, extras))
+        enemies = response_data["enemies"]
+        enemies_values = []
+        for e in enemies:
+            enemies_values.extend([e['type'], e['x'], e['y']])
+
+        enemies_flat = np.array(enemies_values, dtype=np.float32)
+        observation = np.concatenate((enemies_flat,grid_flat, extras))
+        #print(f"Initial observation: {observation!r}")
         info = {}
         return observation, info
     
