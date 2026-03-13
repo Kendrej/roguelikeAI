@@ -15,8 +15,8 @@ class RewardLogCallback(BaseCallback):
         self.step_rewards.append(reward)
         self.episode_reward_sum += reward
         
-        if self.num_timesteps % 100 == 0:
-            self.logger.record("custom/reward_mean_100", np.mean(self.step_rewards[-100:]))
+        if self.num_timesteps % 1024 == 0:
+            self.logger.record("custom/reward_mean_1024", np.mean(self.step_rewards[-1024:]))
             self.logger.record("custom/current_episode_sum", self.episode_reward_sum)
         
         if self.locals['dones'][0]:
@@ -31,7 +31,7 @@ if os.path.exists("checkpoints/roguelike_ppo.zip"):
     model = PPO.load("checkpoints/roguelike_ppo", env=env)
     print("Kontynuuję trening od zapisanego modelu")
 else:
-    model = PPO("MlpPolicy", env, verbose=1, tensorboard_log="./logs/", n_steps=128)
+    model = PPO("MlpPolicy", env, verbose=1, tensorboard_log="./logs/", n_steps=1024, ent_coef=0.01)
     print("Nowy model od zera")
 
 callback = RewardLogCallback()
