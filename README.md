@@ -1,6 +1,6 @@
 # RogueLike AI (Reinforcement Learning)
 
-An Artificial Intelligence agent based on Reinforcement Learning, developed for autonomous gameplay in a custom C++ game engine: [RogueLike Dungeon Crawler](https://github.com/Kendrej/RogueLikeGame). 
+An Artificial Intelligence agent based on Reinforcement Learning, developed for autonomous gameplay in a custom C++ game engine: [RogueLike](https://github.com/Kendrej/RogueLikeGame). 
 
 This repository contains the model architecture, a custom environment based on the Gymnasium API, and the Inter-Process Communication (IPC) system.
 
