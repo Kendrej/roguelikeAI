@@ -28,7 +28,7 @@ class RewardLogCallback(BaseCallback):
         return True
 
 base_env = RogueLikeEnv()
-env = TimeLimit(base_env, max_episode_steps=4000)
+env = TimeLimit(base_env, max_episode_steps=3000)
 
 all_files = glob.glob("checkpoints/*.zip")
 newest_file = None
@@ -41,7 +41,7 @@ if newest_file:
     model = PPO.load(newest_file, env=env)
     print("Kontynuuję trening od zapisanego modelu")
 else:
-    model = PPO("MlpPolicy", env, verbose=1, tensorboard_log="./logs/", n_steps=4096, ent_coef=0.03)
+    model = PPO("MlpPolicy", env, verbose=1, tensorboard_log="./logs/", n_steps=3072, ent_coef=0.05)
     print("Nowy model od zera")
 
 log_callback = RewardLogCallback()
