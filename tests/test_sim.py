@@ -10,6 +10,7 @@ from collections import deque
 import zmq
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+from env import rewards
 from env.rewards import compute_reward
 
 SIM = None
@@ -76,7 +77,7 @@ def test_protocol():
     check("zle polecenie", c.raw("xyz") == "unknown_command")
     check("akcja spoza zakresu", c.raw("9") == "unknown_command")
     state = c.rq("reset")
-    check("wersja protokolu", state["protocol"] == 2)
+    check("wersja protokolu", state["protocol"] == 3)
     check("rozmiar siatki", len(state["grid"]) == 16 and len(state["grid"][0]) == 30)
     check("5 slotow wrogow", len(state["enemies"]) == 5)
     c.rq("quit")
@@ -162,14 +163,39 @@ def test_events():
 def test_rewards():
     zero = {k: 0 for k in ("keysPicked", "keysUsed", "enemiesKilled", "damageDealt", "hpDelta", "newTiles", "mapsChanged")}
 
-    def reward(won=False, alive=True, **events):
-        return compute_reward({"events": {**zero, **events}, "won": won, "alive": alive}) + 50.0 / 4000
+    def reward(won=False, alive=True, new_map=False, **events):
+        return compute_reward({"events": {**zero, **events}, "won": won, "alive": alive}, new_map) - rewards.STEP_PENALTY
 
     ok = all(abs(a - b) < 1e-6 for a, b in [
-        (reward(keysPicked=1), 40), (reward(keysUsed=1), 40), (reward(enemiesKilled=1), 10),
-        (reward(damageDealt=4), 2), (reward(hpDelta=-4), -2), (reward(newTiles=1), 25 / 480),
-        (reward(mapsChanged=1), 100), (reward(won=True), 500), (reward(alive=False), -100)])
-    check("nagrody zgodne ze stara tabela", ok)
+        (reward(keysPicked=1), rewards.KEY_PICKED), (reward(keysUsed=1), rewards.KEY_USED),
+        (reward(enemiesKilled=1), rewards.ENEMY_KILLED), (reward(damageDealt=4), 4 * rewards.DAMAGE_DEALT),
+        (reward(hpDelta=-4), -4 * rewards.HP_CHANGE), (reward(newTiles=1), rewards.NEW_TILE),
+        (reward(new_map=True), rewards.NEW_MAP), (reward(mapsChanged=1), 0.0),
+        (reward(won=True), rewards.GAME_WON), (reward(alive=False), rewards.PLAYER_DIED)])
+    check("nagrody zgodne z tabela", ok)
+
+
+def test_observation():
+    import numpy as np
+    from env.observation import OBSERVATION_SIZE, build_observation
+
+    c = Client(SIM)
+    state = c.rq("reset")
+    worst = 0.0
+    bad_shape = False
+    rng = random.Random(8)
+    tiles = set()
+    for _ in range(5000):
+        tiles.add((state["playerX"], state["playerY"]))
+        obs = build_observation(state, tiles, {(state["level"], state["map"])})
+        bad_shape |= obs.shape != (OBSERVATION_SIZE,) or obs.dtype != np.float32
+        worst = max(worst, float(np.abs(obs).max()))
+        state = c.rq(str(rng.randrange(5)))
+        if not state["alive"] or state["won"]:
+            state = c.rq("reset")
+            tiles = set()
+    check("obserwacja ma staly rozmiar i zakres", not bad_shape and worst <= 1.0, f"max {worst:.3f}")
+    c.close()
 
 
 def test_memory():
@@ -289,6 +315,7 @@ if __name__ == "__main__":
     SIM = os.path.abspath(sys.argv[1])
     GAME = os.path.abspath(sys.argv[2]) if len(sys.argv) > 2 else None
     test_rewards()
+    test_observation()
     test_protocol()
     test_lockstep()
     test_determinism(SIM, os.path.basename(os.path.dirname(os.path.dirname(SIM))))

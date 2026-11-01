@@ -71,7 +71,8 @@ def main():
         model = PPO.load(newest_file, env=env)
         print("Kontynuuję trening od zapisanego modelu")
     else:
-        model = PPO("MlpPolicy", env, verbose=1, tensorboard_log="./logs/", n_steps=ROLLOUT_STEPS // n_envs, ent_coef=0.05, device="cpu")
+        model = PPO("MlpPolicy", env, verbose=1, tensorboard_log="./logs/", n_steps=ROLLOUT_STEPS // n_envs, batch_size=256,
+                    gamma=0.995, ent_coef=0.01, device="cpu")
         print("Nowy model od zera")
 
     log_callback = RewardLogCallback()

@@ -1,16 +1,17 @@
-STEP_PENALTY = -50.0 / 4000
-KEY_PICKED = 40.0
-KEY_USED = 40.0
-ENEMY_KILLED = 10.0
-DAMAGE_DEALT = 0.5
-HP_CHANGE = 0.5
-NEW_TILE = 25.0 / 480
-MAP_CHANGED = 100.0
-GAME_WON = 500.0
-PLAYER_DIED = -100.0
+STEP_PENALTY = -0.001
+KEY_PICKED = 2.0
+KEY_USED = 2.0
+ENEMY_KILLED = 0.5
+DAMAGE_DEALT = 0.01
+HP_CHANGE = 0.01
+NEW_TILE = 0.01
+NEW_MAP = 2.0
+GAME_WON = 10.0
+PLAYER_DIED = -1.0
 
 
-def compute_reward(state):
+def compute_reward(state, entered_new_map):
+    """entered_new_map tylko za pierwsze wejscie, zeby chodzenie tam i z powrotem sie nie oplacalo."""
     events = state["events"]
     reward = STEP_PENALTY
     reward += events["keysPicked"] * KEY_PICKED
@@ -19,7 +20,8 @@ def compute_reward(state):
     reward += events["damageDealt"] * DAMAGE_DEALT
     reward += events["hpDelta"] * HP_CHANGE
     reward += events["newTiles"] * NEW_TILE
-    reward += events["mapsChanged"] * MAP_CHANGED
+    if entered_new_map:
+        reward += NEW_MAP
     if state["won"]:
         reward += GAME_WON
     elif not state["alive"]:

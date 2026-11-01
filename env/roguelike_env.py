@@ -5,9 +5,10 @@ import subprocess
 import gymnasium as gym
 from gymnasium import spaces
 import numpy as np
+from env.observation import OBSERVATION_SIZE, build_observation
 from env.rewards import compute_reward
 
-PROTOCOL_VERSION = 2
+PROTOCOL_VERSION = 3
 
 class RogueLikeEnv(gym.Env):
     def __init__(self, port=5555, sim_path=None, frame_skip=4, extra_args=()):
@@ -27,7 +28,9 @@ class RogueLikeEnv(gym.Env):
         self.socket.setsockopt(zmq.LINGER, 0)
         self.socket.connect(f"tcp://127.0.0.1:{port}")
         self.action_space = spaces.Discrete(5)
-        self.observation_space = spaces.Box(low=-5, high=500, shape=(504,), dtype=np.float32)
+        self.observation_space = spaces.Box(low=-1, high=1, shape=(OBSERVATION_SIZE,), dtype=np.float32)
+        self.visited_maps = set()
+        self.visited_tiles = {}
 
     def _request(self, command):
         self.socket.send_string(command)
@@ -37,22 +40,24 @@ class RogueLikeEnv(gym.Env):
         return state
 
     def _observation(self, state):
-        extras = np.array([state["hp"], state["playerX"], state["playerY"], state["key"]], dtype=np.float32)
-        grid_flat = np.array(state["grid"], dtype=np.float32).flatten()
-        enemies_values = []
-        for e in state["enemies"]:
-            enemies_values.extend([e['type'], e['x'], e['y'], e['hp']])
-        enemies_flat = np.array(enemies_values, dtype=np.float32)
-        return np.concatenate((enemies_flat, grid_flat, extras))
+        tiles = self.visited_tiles.setdefault((state["level"], state["map"]), set())
+        tiles.add((state["playerX"], state["playerY"]))
+        return build_observation(state, tiles, self.visited_maps)
 
     def step(self, action):
         state = self._request(str(int(action)))
+        current_map = (state["level"], state["map"])
+        entered_new_map = current_map not in self.visited_maps
+        self.visited_maps.add(current_map)
         done = not state["alive"] or state["won"]
-        return self._observation(state), compute_reward(state), done, False, {}
+        info = {"state": state, "new_map": entered_new_map}
+        return self._observation(state), compute_reward(state, entered_new_map), done, False, info
 
     def reset(self, seed=None, options=None):
         super().reset(seed=seed)
         state = self._request("reset")
+        self.visited_tiles = {}
+        self.visited_maps = {(state["level"], state["map"])}
         return self._observation(state), {}
 
     def close(self):
