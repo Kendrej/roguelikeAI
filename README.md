@@ -86,12 +86,9 @@ The agent's behavior is guided by a sophisticated multi-objective reward functio
    ```bash
    pip install stable-baselines3[extra] gymnasium pyzmq numpy
    ```
-3. **Training**:
-   The script starts the headless simulators itself:
-   ```bash
-   python train.py --sim path/to/RogueLikeSim.exe --n-envs 4
-   ```
-   To watch a run, start `RogueLikeGame --ai-mode` and run `python train.py` without `--sim`.
+3. **Running** (Windows, with both repositories in the same folder): the first run installs dependencies into `.venv`.
+   * `train.bat` trains without graphics and starts the simulators itself. Extra options such as `--timesteps 1000000` are passed through.
+   * `watch.bat` opens the game and shows the newest model from `checkpoints/`. Use `--speed 3` to play faster.
 4. **Monitoring**:
    Track the learning progress using TensorBoard:
    ```bash

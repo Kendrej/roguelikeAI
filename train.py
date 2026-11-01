@@ -8,6 +8,7 @@ from stable_baselines3 import PPO
 from stable_baselines3.common.callbacks import BaseCallback, CheckpointCallback, CallbackList
 from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv, VecMonitor
 from collections import deque
+from env.paths import find_executable
 from env.roguelike_env import RogueLikeEnv
 import argparse
 import numpy as np
@@ -44,7 +45,7 @@ def make_env(port, sim_path, frame_skip):
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--sim", default=os.environ.get("ROGUELIKE_SIM"), help="sciezka do RogueLikeSim.exe; bez niej laczy sie z uruchomiona gra")
+    parser.add_argument("--sim", default=None, help="sciezka do RogueLikeSim.exe; domyslnie z folderu ../RogueLikeGame")
     parser.add_argument("--n-envs", type=int, default=4)
     parser.add_argument("--frame-skip", type=int, default=4)
     parser.add_argument("--timesteps", type=int, default=10_000_000)
@@ -53,9 +54,10 @@ def parse_args():
 def main():
     args = parse_args()
     torch.set_num_threads(1)
-    n_envs = args.n_envs if args.sim else 1
+    n_envs = args.n_envs
+    sim_path = args.sim or find_executable("RogueLikeSim")
 
-    env_fns = [make_env(BASE_PORT + i, args.sim, args.frame_skip) for i in range(n_envs)]
+    env_fns = [make_env(BASE_PORT + i, sim_path, args.frame_skip) for i in range(n_envs)]
     env = VecMonitor(SubprocVecEnv(env_fns) if n_envs > 1 else DummyVecEnv(env_fns))
 
     all_files = glob.glob("checkpoints/*.zip")
@@ -78,7 +80,7 @@ def main():
 
     callback_list = CallbackList([log_callback, checkpoint_callback])
 
-    model.learn(total_timesteps=args.timesteps, callback=callback_list)
+    model.learn(total_timesteps=args.timesteps, callback=callback_list, reset_num_timesteps=newest_file is None)
 
     model.save("checkpoints/roguelike_ppo")
     env.close()

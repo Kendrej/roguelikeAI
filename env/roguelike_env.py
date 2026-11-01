@@ -10,13 +10,13 @@ from env.rewards import compute_reward
 PROTOCOL_VERSION = 2
 
 class RogueLikeEnv(gym.Env):
-    def __init__(self, port=5555, sim_path=None, frame_skip=4):
+    def __init__(self, port=5555, sim_path=None, frame_skip=4, extra_args=()):
         """Bez sim_path laczy sie z juz uruchomiona gra (RogueLikeGame --ai-mode)."""
         super().__init__()
         self.process = None
         if sim_path:
             self.process = subprocess.Popen(
-                [sim_path, "--port", str(port), "--frame-skip", str(frame_skip)],
+                [sim_path, "--port", str(port), "--frame-skip", str(frame_skip), *extra_args],
                 cwd=os.path.dirname(sim_path),
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
