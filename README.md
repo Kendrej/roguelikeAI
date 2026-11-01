@@ -81,16 +81,17 @@ The agent's behavior is guided by a sophisticated multi-objective reward functio
 
 ## Getting Started
 
-1. **Prerequisites**: Ensure you have the [RogueLike Game](https://github.com/Kendrej/RogueLikeGame) compiled and running in AI mode.
+1. **Prerequisites**: Build the `ai-headless` branch of the [RogueLike Game](https://github.com/Kendrej/RogueLikeGame). It produces `RogueLikeGame` (windowed) and `RogueLikeSim` (no graphics).
 2. **Setup**:
    ```bash
    pip install stable-baselines3[extra] gymnasium pyzmq numpy
    ```
 3. **Training**:
-   Start the game server, then run the training script:
+   The script starts the headless simulators itself:
    ```bash
-   python train.py
+   python train.py --sim path/to/RogueLikeSim.exe --n-envs 4
    ```
+   To watch a run, start `RogueLikeGame --ai-mode` and run `python train.py` without `--sim`.
 4. **Monitoring**:
    Track the learning progress using TensorBoard:
    ```bash
