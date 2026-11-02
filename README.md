@@ -62,20 +62,21 @@ roguelikeAI/
 
 ## Reward Shaping System
 
-The agent's behavior is guided by a sophisticated multi-objective reward function implemented in the C++ engine:
+The game only reports raw events; the reward is computed in Python (`env/rewards.py`):
 
 | Category | Event | Reward | Purpose |
 | :--- | :--- | :--- | :--- |
-| **Survival** | Every Step | `-50.0 / n_steps` | Constant time penalty to encourage speed. |
-| **Progression** | Picking up a Key | `+40.0` | Incentivizes interacting with key items. |
-| **Progression** | Using a Key | `+40.0` | Reward for solving the door puzzle. |
-| **Combat** | Killing an Enemy | `+10.0` | Clear incentive to eliminate threats. |
-| **Combat** | Dealing Damage | `+0.5 per HP` | Reward for offensive actions. |
-| **Defense** | Taking Damage | `-0.5 per HP` | Penalty for poor positioning/defense. |
-| **Exploration** | New Tile Visited | `+25.0 / 480` | Encourages exploring the entire 30x16 grid. |
-| **Progression** | Next Floor | `+100.0` | Massive reward for map completion. |
-| **Outcome** | Game Won | `+500.0` | Ultimate objective. |
-| **Outcome** | Player Death | `-100.0` | Strong penalty for terminal failure. |
+| **Survival** | Every Step | `-0.001` | Small time penalty against standing still. |
+| **Exploration** | New Tile Visited | `+0.01` | Counted once per tile on each map. |
+| **Progression** | First Visit to a Map | `+2.0` | Going back and forth through a door pays nothing. |
+| **Progression** | Picking up / Using a Key | `+2.0` each | Opens the locked door to the next level. |
+| **Combat** | Killing an Enemy | `+1.0` | Clear incentive to eliminate threats. |
+| **Combat** | Clearing a Room | `+3.0` | Doors open only after every enemy on the map is dead. |
+| **Combat** | Dealing / Taking Damage | `±0.01 per HP` | Rewards offence, penalises poor positioning. |
+| **Outcome** | Game Won | `+10.0` | Ultimate objective. |
+| **Outcome** | Player Death | `-1.0` | Terminal failure. |
+
+The agent has 6 actions: move up/down/left/right, melee attack and a shot aimed automatically at the nearest enemy (the human game aims with the mouse, which the headless simulator does not have).
 
 ---
 

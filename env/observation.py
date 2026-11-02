@@ -7,7 +7,8 @@ MAX_ENEMIES = 3
 GRID_WIDTH = 30
 GRID_HEIGHT = 16
 MAX_ENEMY_HP = 250.0
-VECTOR_SIZE = 10 + 5 * MAX_ENEMIES + 3 + 3
+MAX_ENEMY_COUNT = 10.0
+VECTOR_SIZE = 12 + 5 * MAX_ENEMIES + 3 + 3
 OBSERVATION_SIZE = CHANNELS * VIEW_SIZE * VIEW_SIZE + VECTOR_SIZE
 
 
@@ -49,16 +50,21 @@ def build_observation(state, visited_tiles, visited_maps):
     for x, y in visited_tiles:
         mark(4, x, y)
 
+    # Drzwi otwieraja sie dopiero po zabiciu wszystkich wrogow na mapie
+    doors_closed = state["enemyCount"] > 0
+
     vector = [
         state["hp"] / 100.0,
         float(state["key"]),
         float(state["lockedDoor"]),
         float(state["meleeReady"]),
+        float(state["rangedReady"]),
         np.clip(state["facingX"], -1, 1),
         np.clip(state["facingY"], -1, 1),
         state["fracX"],
         state["fracY"],
-        len(enemies) / 5.0,
+        min(state["enemyCount"] / MAX_ENEMY_COUNT, 1.0),
+        float(doors_closed),
         state["level"],
     ]
 
@@ -74,8 +80,8 @@ def build_observation(state, visited_tiles, visited_maps):
     item = _nearest(items, px, py)
     vector += [1.0, *_relative(item, px, py)] if item else [0.0, 0.0, 0.0]
 
-    # Wyjscie prowadzace na nieodwiedzona mape, a gdy takiego nie ma, dowolne
-    gateways = state["gateways"]
+    # Wyjscie prowadzace na nieodwiedzona mape, a gdy takiego nie ma, dowolne; przy zamknietych drzwiach brak celu
+    gateways = [] if doors_closed else state["gateways"]
     fresh = [(g["x"], g["y"]) for g in gateways if (g["level"], g["map"]) not in visited_maps]
     exit_tile = _nearest(fresh or [(g["x"], g["y"]) for g in gateways], px, py)
     vector += [float(bool(fresh)), *_relative(exit_tile, px, py)] if exit_tile else [0.0, 0.0, 0.0]

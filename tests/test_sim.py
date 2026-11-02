@@ -57,7 +57,7 @@ def sequence(seed, n):
     out = []
     while len(out) < n:
         # Dluzsze serie tego samego ruchu, zeby gracz realnie sie przemieszczal
-        out.extend([rng.randrange(5)] * rng.randint(1, 12))
+        out.extend([rng.randrange(6)] * rng.randint(1, 12))
     return out[:n]
 
 
@@ -77,7 +77,7 @@ def test_protocol():
     check("zle polecenie", c.raw("xyz") == "unknown_command")
     check("akcja spoza zakresu", c.raw("9") == "unknown_command")
     state = c.rq("reset")
-    check("wersja protokolu", state["protocol"] == 3)
+    check("wersja protokolu", state["protocol"] == 4)
     check("rozmiar siatki", len(state["grid"]) == 16 and len(state["grid"][0]) == 30)
     check("5 slotow wrogow", len(state["enemies"]) == 5)
     c.rq("quit")
@@ -138,11 +138,15 @@ def test_events():
     hp_start = state["hp"]
     hp_sum = 0
     negative = False
+    bad_count = 0
+    # Bez strzalu, bo losowy gracz ze strzalem prawie nie ginie, a sciezka smierci tez ma byc sprawdzona
     for _ in range(30000):
         state = c.rq(str(rng.randrange(5)))
         e = state["events"]
+        alive = sum(en["hp"] > 0 for en in state["enemies"])
+        bad_count += alive != min(state["enemyCount"], len(state["enemies"]))
         hp_sum += e["hpDelta"]
-        negative |= any(e[k] < 0 for k in ("keysPicked", "keysUsed", "enemiesKilled", "damageDealt", "newTiles", "mapsChanged"))
+        negative |= any(e[k] < 0 for k in ("keysPicked", "keysUsed", "enemiesKilled", "damageDealt", "newTiles", "mapsChanged", "roomsCleared"))
         if not state["alive"] or state["won"]:
             ended += 1
             bad_hp += hp_start + hp_sum != state["hp"]
@@ -157,18 +161,19 @@ def test_events():
             episodes += 1
     check("zdarzenia HP sumuja sie do stanu", bad_hp == 0 and episodes > 0, f"epizodow {episodes}, bledow {bad_hp}")
     check("liczniki zdarzen nieujemne", not negative)
+    check("enemyCount zgodny z lista wrogow", bad_count == 0, f"bledow {bad_count}")
     c.close()
 
 
 def test_rewards():
-    zero = {k: 0 for k in ("keysPicked", "keysUsed", "enemiesKilled", "damageDealt", "hpDelta", "newTiles", "mapsChanged")}
+    zero = {k: 0 for k in ("keysPicked", "keysUsed", "enemiesKilled", "damageDealt", "hpDelta", "newTiles", "mapsChanged", "roomsCleared")}
 
     def reward(won=False, alive=True, new_map=False, **events):
         return compute_reward({"events": {**zero, **events}, "won": won, "alive": alive}, new_map) - rewards.STEP_PENALTY
 
     ok = all(abs(a - b) < 1e-6 for a, b in [
         (reward(keysPicked=1), rewards.KEY_PICKED), (reward(keysUsed=1), rewards.KEY_USED),
-        (reward(enemiesKilled=1), rewards.ENEMY_KILLED), (reward(damageDealt=4), 4 * rewards.DAMAGE_DEALT),
+        (reward(enemiesKilled=1), rewards.ENEMY_KILLED), (reward(roomsCleared=1), rewards.ROOM_CLEARED), (reward(damageDealt=4), 4 * rewards.DAMAGE_DEALT),
         (reward(hpDelta=-4), -4 * rewards.HP_CHANGE), (reward(newTiles=1), rewards.NEW_TILE),
         (reward(new_map=True), rewards.NEW_MAP), (reward(mapsChanged=1), 0.0),
         (reward(won=True), rewards.GAME_WON), (reward(alive=False), rewards.PLAYER_DIED)])
@@ -190,7 +195,7 @@ def test_observation():
         obs = build_observation(state, tiles, {(state["level"], state["map"])})
         bad_shape |= obs.shape != (OBSERVATION_SIZE,) or obs.dtype != np.float32
         worst = max(worst, float(np.abs(obs).max()))
-        state = c.rq(str(rng.randrange(5)))
+        state = c.rq(str(rng.randrange(6)))
         if not state["alive"] or state["won"]:
             state = c.rq("reset")
             tiles = set()
@@ -223,7 +228,7 @@ def test_memory():
     def burn(steps):
         c.rq("reset")
         for i in range(steps):
-            s = c.rq(str(rng.randrange(5)))
+            s = c.rq(str(rng.randrange(6)))
             if not s["alive"] or s["won"] or i % 500 == 0:
                 c.rq("reset")
 
@@ -254,7 +259,7 @@ def bfs(grid, start, goals, blocked=()):
 
 
 def test_bot(max_steps=60000, seed=6):
-    """Bot idzie do wrogow i bije, potem wchodzi w drzwi; ma przejsc klucz, drzwi i kolejne mapy."""
+    """Bot strzela do wrogow i od nich odchodzi, potem wchodzi w drzwi; ma przejsc klucz, drzwi i kolejne mapy."""
     c = Client(SIM)
     rng = random.Random(seed)
     totals = {}
@@ -273,15 +278,20 @@ def test_bot(max_steps=60000, seed=6):
         action = None
         if enemies:
             target = min(enemies, key=lambda e: abs(e[0] - pos[0]) + abs(e[1] - pos[1]))
-            if abs(target[0] - pos[0]) + abs(target[1] - pos[1]) <= 1:
-                action = 4
-            else:
-                action = bfs(grid, pos, {target})
+            dist = abs(target[0] - pos[0]) + abs(target[1] - pos[1])
+            if state["rangedReady"]:
+                action = 5
+            elif dist <= 2:
+                # Strzela i ucieka, bo rycerze sa wolniejsi od gracza
+                moves = [(a, (pos[0] + dx, pos[1] + dy)) for a, dx, dy in ((0, 0, -1), (1, 0, 1), (2, -1, 0), (3, 1, 0))]
+                moves = [(a, n) for a, n in moves if 0 <= n[0] < 30 and 0 <= n[1] < 16 and grid[n[1]][n[0]] == 0]
+                if moves:
+                    action = max(moves, key=lambda m: abs(m[1][0] - target[0]) + abs(m[1][1] - target[1]))[0]
         if action is None:
             doors = {(x, y) for y, row in enumerate(grid) for x, v in enumerate(row) if v == 2 and (x, y) not in seen}
             action = bfs(grid, pos, doors) if doors else None
         if action is None or rng.random() < 0.1:
-            action = rng.randrange(5)
+            action = rng.randrange(6)
         state = c.rq(str(action))
         for k, v in state["events"].items():
             totals[k] = totals.get(k, 0) + v
@@ -326,6 +336,7 @@ if __name__ == "__main__":
     totals, maps, won, deaths = test_bot()
     print("bot:", totals, "mapy", sorted(maps), "wygrana", won, "smierci", deaths)
     check("bot zabija wrogow i zmienia mapy", totals.get("enemiesKilled", 0) > 0 and totals.get("mapsChanged", 0) > 0)
+    check("bot czysci pokoje", totals.get("roomsCleared", 0) > 0)
     test_memory()
     print(f"{sum(RESULTS)}/{len(RESULTS)} OK")
     sys.exit(0 if all(RESULTS) else 1)

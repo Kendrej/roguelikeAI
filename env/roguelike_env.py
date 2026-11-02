@@ -8,7 +8,7 @@ import numpy as np
 from env.observation import OBSERVATION_SIZE, build_observation
 from env.rewards import compute_reward
 
-PROTOCOL_VERSION = 3
+PROTOCOL_VERSION = 4
 
 class RogueLikeEnv(gym.Env):
     def __init__(self, port=5555, sim_path=None, frame_skip=4, extra_args=()):
@@ -27,7 +27,7 @@ class RogueLikeEnv(gym.Env):
         self.socket.setsockopt(zmq.RCVTIMEO, 30000)
         self.socket.setsockopt(zmq.LINGER, 0)
         self.socket.connect(f"tcp://127.0.0.1:{port}")
-        self.action_space = spaces.Discrete(5)
+        self.action_space = spaces.Discrete(6)
         self.observation_space = spaces.Box(low=-1, high=1, shape=(OBSERVATION_SIZE,), dtype=np.float32)
         self.visited_maps = set()
         self.visited_tiles = {}

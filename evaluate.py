@@ -48,7 +48,7 @@ def main():
     args = parser.parse_args()
 
     rng = random.Random(1)
-    print("losowy:", play(lambda _: rng.randrange(5), 5590, args.episodes))
+    print("losowy:", play(lambda _: rng.randrange(6), 5590, args.episodes))
     model_path = args.model or newest_model()
     model = PPO.load(model_path, device="cpu")
     print(f"model ({model.num_timesteps} krokow):", play(lambda obs: model.predict(obs, deterministic=False)[0], 5591, args.episodes))

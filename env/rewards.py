@@ -1,7 +1,8 @@
 STEP_PENALTY = -0.001
 KEY_PICKED = 2.0
 KEY_USED = 2.0
-ENEMY_KILLED = 0.5
+ENEMY_KILLED = 1.0
+ROOM_CLEARED = 3.0
 DAMAGE_DEALT = 0.01
 HP_CHANGE = 0.01
 NEW_TILE = 0.01
@@ -17,6 +18,7 @@ def compute_reward(state, entered_new_map):
     reward += events["keysPicked"] * KEY_PICKED
     reward += events["keysUsed"] * KEY_USED
     reward += events["enemiesKilled"] * ENEMY_KILLED
+    reward += events["roomsCleared"] * ROOM_CLEARED
     reward += events["damageDealt"] * DAMAGE_DEALT
     reward += events["hpDelta"] * HP_CHANGE
     reward += events["newTiles"] * NEW_TILE
