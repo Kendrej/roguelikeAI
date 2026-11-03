@@ -8,11 +8,12 @@ DAMAGE_DEALT = 0.01
 HP_CHANGE = 0.01
 NEW_TILE = 0.01
 NEW_MAP = 2.0
+NEW_LEVEL = 5.0  # pierwsze wejscie na wyzszy poziom, oprocz NEW_MAP
 GAME_WON = 10.0
 PLAYER_DIED = -1.0
 
 
-def compute_reward(state, entered_new_map, key_progress=0.0):
+def compute_reward(state, entered_new_map, key_progress=0.0, entered_new_level=False):
     """entered_new_map tylko za pierwsze wejscie, zeby chodzenie tam i z powrotem sie nie oplacalo.
 
     key_progress: zmiana potencjalu drogi do drzwi (DoorRoute.potential), wiec krazenie nic nie daje."""
@@ -27,6 +28,8 @@ def compute_reward(state, entered_new_map, key_progress=0.0):
     reward += events["newTiles"] * NEW_TILE
     if entered_new_map:
         reward += NEW_MAP
+    if entered_new_level:
+        reward += NEW_LEVEL
     if state["won"]:
         reward += GAME_WON
     elif not state["alive"]:

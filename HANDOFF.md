@@ -54,20 +54,21 @@ Pierwsze uruchomienie `.bat` tworzy `.venv` i instaluje zależności (`setup.bat
 - 6 akcji: ruch w 4 strony, miecz, strzał z auto-celem w najbliższego wroga.
 - Z kluczem wskaźnik wyjścia prowadzi przez znane mapy do zamkniętych drzwi (`env/route.py`), z nagrodą-potencjałem za zbliżanie się.
 - Trening równoległy na 4 grach: ok. 650 kroków/s na laptopie, ok. 1100 kroków/s na drugim komputerze.
-- Najlepszy model: `models/ppo_door_2m.zip` (`ppo_shoot_1m` + 1 mln kroków). W gicie są oba.
+- Nagroda +5 za pierwsze wejście na wyższy poziom (`NEW_LEVEL`).
+- Najlepszy model: `models/ppo_level1_4m.zip` (`ppo_door_2m` + 2 mln kroków). W gicie są też `ppo_shoot_1m` i `ppo_door_2m`.
 
-| | losowy gracz | ppo_shoot_1m | ppo_door_2m |
-|---|---|---|---|
-| średnia nagroda | 2,4 | 26,5 | **35,3** |
-| podniesione klucze (50 gier) | 0 | 47 | 47 |
-| otwarte drzwi (50 gier) | 0 | 0 | **47** |
-| wygrane | 0 | 0 | 0 |
+| | losowy gracz | ppo_shoot_1m | ppo_door_2m | ppo_level1_4m |
+|---|---|---|---|---|
+| średnia nagroda | 2,4 | 26,5 | 35,3 | **63,5** |
+| otwarte drzwi (50 gier) | 0 | 0 | 47 | **50** |
+| doszedł do poziomu 1 (50 gier) | 0 | 0 | 0 | **49** |
+| wygrane | 0 | 0 | 0 | 0 |
 
-Model czyści mapę 0/1, zabija bossa na 0/4, bierze klucz, wraca na 0/0 i otwiera drzwi. Szczegóły w `RESULTS.md`.
+Model czyści mapę 0/1, zabija bossa na 0/4, bierze klucz, wraca na 0/0, otwiera drzwi i zwiedza poziom 1. Szczegóły w `RESULTS.md`.
 
 ## Co dalej
 
-1. **Główny problem:** po otwarciu drzwi model nie wchodzi na poziom 1 (wyjście (13-14,1), 2 pola nad drzwiami), tylko idzie na nieodwiedzoną mapę 0/3. Wskaźnik pokazuje wyjście na poziom 1, ale model nie miał jeszcze okazji się tego nauczyć. Pomysł: dłuższy trening, ewentualnie większa nagroda za nowy poziom.
+1. **Główny problem:** każda gra kończy się limitem 3000 decyzji (`TimeLimit` w `train.py` i `evaluate.py`) gdzieś na poziomie 1. Sprawdzić, co blokuje dalej (klucz i drzwi na poziomie 1, czy `DoorRoute` działa tam tak samo), potem podnieść limit i trenować dalej.
 2. Błąd w grze: `Map.cpp` ok. linii 166, brak klamer po `if (... "locked" ...)`, więc `lockedDoors = true` na prawie każdej mapie. Tryb AI to omija (drzwi liczą się tylko z obiektem "door" z Tiled). Samej gry nie poprawiałem, bo to zmienia jej logikę.
 3. Drobny błąd w grze: powielone wyjście (27,6) na mapie 0/1, brakuje (27,7).
 4. Debug gry nie był przebudowany po ostatnich zmianach (Release: CTest 2/2, symulator 22/22 bez okna).

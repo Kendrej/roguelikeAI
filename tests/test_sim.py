@@ -170,8 +170,9 @@ def test_events():
 def test_rewards():
     zero = {k: 0 for k in ("keysPicked", "keysUsed", "enemiesKilled", "damageDealt", "hpDelta", "newTiles", "mapsChanged", "roomsCleared")}
 
-    def reward(won=False, alive=True, new_map=False, key_progress=0.0, **events):
-        return compute_reward({"events": {**zero, **events}, "won": won, "alive": alive}, new_map, key_progress) - rewards.STEP_PENALTY
+    def reward(won=False, alive=True, new_map=False, key_progress=0.0, new_level=False, **events):
+        state = {"events": {**zero, **events}, "won": won, "alive": alive}
+        return compute_reward(state, new_map, key_progress, new_level) - rewards.STEP_PENALTY
 
     ok = all(abs(a - b) < 1e-6 for a, b in [
         (reward(keysPicked=1), rewards.KEY_PICKED), (reward(keysUsed=1), rewards.KEY_USED),
@@ -179,7 +180,7 @@ def test_rewards():
         (reward(hpDelta=-4), -4 * rewards.HP_CHANGE), (reward(newTiles=1), rewards.NEW_TILE),
         (reward(new_map=True), rewards.NEW_MAP), (reward(mapsChanged=1), 0.0),
         (reward(won=True), rewards.GAME_WON), (reward(alive=False), rewards.PLAYER_DIED),
-        (reward(key_progress=1.0), rewards.KEY_ROUTE)])
+        (reward(key_progress=1.0), rewards.KEY_ROUTE), (reward(new_level=True), rewards.NEW_LEVEL)])
     check("nagrody zgodne z tabela", ok)
 
 

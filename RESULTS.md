@@ -2,6 +2,26 @@
 
 Ocena: `evaluate.py`, 50 gier po maks. 3000 decyzji, porownanie z losowym graczem.
 
+## 2026-11-03: nagroda za nowy poziom
+
+Model: `models/ppo_level1_4m.zip`, czyli `ppo_door_2m` dotrenowany o 2 mln krokow (ok. 30 min). Nowa nagroda: +5 za pierwsze wejscie na wyzszy poziom (`NEW_LEVEL`).
+Srednia nagroda w treningu: 30,5 -> 61,8.
+
+| | losowy gracz | ppo_door_2m | model |
+|---|---|---|---|
+| srednia nagroda | 2,41 | 35,30 | **63,47** |
+| srednio krokow | 3000 | 2893 | 3000 |
+| nowe mapy (maks.) | 0,52 (2) | 2,92 (3) | **6,28 (7)** |
+| zabici wrogowie | 2,12 | 9,66 | **15,44** |
+| smierci | 0/50 | 2/50 | **0/50** |
+| klucze / otwarte drzwi | 0 / 0 | 47 / 47 | **50 / 50** |
+| doszedl do poziomu 1 | 0 | 0 | **49** |
+| wygrane | 0 | 0 | 0 |
+
+Po otwarciu drzwi model wchodzi na poziom 1 i zwiedza go (np. 1/0 -> 1/1 -> 1/3 -> 1/2). Kazda gra konczy sie limitem 3000 decyzji.
+
+Podglad: `watch.bat --model models/ppo_level1_4m.zip`
+
 ## 2026-11-03: droga z kluczem do zamknietych drzwi
 
 Model: `models/ppo_door_2m.zip`, czyli `ppo_shoot_1m` dotrenowany o 1 mln krokow (ok. 15 min na 4 grach). Protokol 5, rozmiar obserwacji i akcji bez zmian.

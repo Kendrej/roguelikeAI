@@ -15,11 +15,11 @@ MAX_STEPS = 3000
 
 def play(policy, port, episodes):
     env = TimeLimit(RogueLikeEnv(port=port, sim_path=find_executable("RogueLikeSim")), max_episode_steps=MAX_STEPS)
-    rewards, steps, maps, kills, deaths, keys, doors, wins = [], [], [], [], 0, 0, 0, 0
+    rewards, steps, maps, kills, deaths, keys, doors, levels, wins = [], [], [], [], 0, 0, 0, 0, 0
     for _ in range(episodes):
         obs, _ = env.reset()
         total = 0.0
-        new_maps = killed = length = 0
+        new_maps = killed = length = top_level = 0
         done = False
         while not done:
             obs, reward, terminated, truncated, info = env.step(policy(obs))
@@ -31,15 +31,17 @@ def play(policy, port, episodes):
             killed += state["events"]["enemiesKilled"]
             keys += state["events"]["keysPicked"]
             doors += state["events"]["keysUsed"]
+            top_level = max(top_level, state["level"])
             wins += state["won"]
             deaths += not state["alive"]
         rewards.append(total)
         steps.append(length)
         maps.append(new_maps)
         kills.append(killed)
+        levels += top_level > 0
     env.close()
     return (f"nagroda {statistics.mean(rewards):7.2f} | kroki {statistics.mean(steps):5.0f} | nowe mapy {statistics.mean(maps):.2f} "
-            f"(max {max(maps)}) | zabici {statistics.mean(kills):.2f} | smierci {deaths}/{episodes} | klucze {keys} | drzwi {doors} | wygrane {wins}")
+            f"(max {max(maps)}) | zabici {statistics.mean(kills):.2f} | smierci {deaths}/{episodes} | klucze {keys} | drzwi {doors} | poziom 1+ {levels} | wygrane {wins}")
 
 
 def main():

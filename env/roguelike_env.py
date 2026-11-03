@@ -34,6 +34,7 @@ class RogueLikeEnv(gym.Env):
         self.visited_tiles = {}
         self.route = DoorRoute()
         self.key_potential = None
+        self.max_level = 0
 
     def _request(self, command):
         self.socket.send_string(command)
@@ -58,11 +59,13 @@ class RogueLikeEnv(gym.Env):
         state = self._request(str(int(action)))
         current_map = (state["level"], state["map"])
         entered_new_map = current_map not in self.visited_maps
+        entered_new_level = state["level"] > self.max_level
+        self.max_level = max(self.max_level, state["level"])
         self.visited_maps.add(current_map)
         self.route.update(state)
         done = not state["alive"] or state["won"]
         info = {"state": state, "new_map": entered_new_map}
-        reward = compute_reward(state, entered_new_map, self._key_progress(state))
+        reward = compute_reward(state, entered_new_map, self._key_progress(state), entered_new_level)
         return self._observation(state), reward, done, False, info
 
     def reset(self, seed=None, options=None):
@@ -70,6 +73,7 @@ class RogueLikeEnv(gym.Env):
         state = self._request("reset")
         self.visited_tiles = {}
         self.visited_maps = {(state["level"], state["map"])}
+        self.max_level = state["level"]
         self.route = DoorRoute()
         self.route.update(state)
         self.key_potential = self.route.potential(state)
