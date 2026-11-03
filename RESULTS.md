@@ -1,6 +1,6 @@
 # Wyniki treningow
 
-Ocena: `evaluate.py`, 50 gier po maks. 3000 decyzji, porownanie z losowym graczem.
+Ocena: `evaluate.py`, 50 gier, porownanie z losowym graczem. Do 2026-11-03 limit 3000 decyzji na gre, od nastepnego treningu 6000.
 
 ## 2026-11-03: nagroda za nowy poziom
 

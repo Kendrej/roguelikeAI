@@ -10,6 +10,7 @@ from env.rewards import compute_reward
 from env.route import DoorRoute
 
 PROTOCOL_VERSION = 5
+MAX_EPISODE_STEPS = 6000  # decyzji na gre w treningu i ocenie; 3000 nie starczalo na dojscie do bossa na poziomie 1
 
 class RogueLikeEnv(gym.Env):
     def __init__(self, port=5555, sim_path=None, frame_skip=4, extra_args=()):
@@ -46,7 +47,8 @@ class RogueLikeEnv(gym.Env):
     def _observation(self, state):
         tiles = self.visited_tiles.setdefault((state["level"], state["map"]), set())
         tiles.add((state["playerX"], state["playerY"]))
-        return build_observation(state, tiles, self.visited_maps, self.route.target(state))
+        return build_observation(state, tiles, self.visited_maps, self.route.target(state),
+                                 self.route.explore_target(state, self.visited_maps))
 
     def _key_progress(self, state):
         # Tylko gdy klucz byl i jest, zeby podniesienie i uzycie klucza nie zmienialo potencjalu

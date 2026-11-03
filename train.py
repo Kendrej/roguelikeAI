@@ -9,7 +9,7 @@ from stable_baselines3.common.callbacks import BaseCallback, CheckpointCallback,
 from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv, VecMonitor
 from collections import deque
 from env.paths import find_executable
-from env.roguelike_env import RogueLikeEnv
+from env.roguelike_env import MAX_EPISODE_STEPS, RogueLikeEnv
 import argparse
 import numpy as np
 import glob
@@ -40,7 +40,7 @@ class RewardLogCallback(BaseCallback):
 
 def make_env(port, sim_path, frame_skip):
     def init():
-        return TimeLimit(RogueLikeEnv(port=port, sim_path=sim_path, frame_skip=frame_skip), max_episode_steps=3000)
+        return TimeLimit(RogueLikeEnv(port=port, sim_path=sim_path, frame_skip=frame_skip), max_episode_steps=MAX_EPISODE_STEPS)
     return init
 
 def parse_args():

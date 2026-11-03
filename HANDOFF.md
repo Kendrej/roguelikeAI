@@ -1,6 +1,13 @@
 # HANDOFF: roguelikeAI
 
-Stan na 2026-11-03 (wieczór, drugi komputer). Ten plik zastępuje pamięć Claude z laptopa, której nie ma na innym komputerze.
+Stan na koniec 2026-11-03 (PC). Ten plik zastępuje pamięć Claude, która nie przechodzi między laptopem a PC. Claude aktualizuje go na koniec każdego dnia pracy.
+
+## Ostatnia sesja (2026-11-03, PC) i start następnej
+
+- Zrobione: droga z kluczem do drzwi (`ppo_door_2m`), nagroda za nowy poziom (`ppo_level1_4m`: drzwi 50/50, poziom 1 w 49/50, 0 wygranych).
+- Zrobione, **jeszcze bez treningu**: wskaźnik do najbliższej nieodwiedzonej mapy (`DoorRoute.explore_target`) i limit gry 6000 decyzji (`MAX_EPISODE_STEPS` w `env/roguelike_env.py`). Symulator 23/23.
+- **Na start następnej sesji:** `watch.bat --model models\ppo_level1_4m.zip`, potem trening 2 mln kroków od `ppo_level1_4m` (skopiuj go do `checkpoints/` jako najnowszy zip, stare przenieś do podfolderu) i `evaluate.py` na 50 grach. Sprawdzić, czy model wchodzi na 1/4 i bije bossa.
+- PC: repo w `Desktop\PROJEKTY\roguelike`, Python 3.11 doinstalowany. W tym samym `PROJEKTY` są stare `roguelikeAI` (main) i `roguelike_`, nie ruszać.
 
 ## Cel
 
@@ -38,7 +45,7 @@ Powstaje `build/win-ninja-release/bin/RogueLikeGame.exe` (okno) i `RogueLikeSim.
 
 W `roguelikeAI` (w PowerShellu z `.\`):
 
-- `.\watch.bat --model models\ppo_door_2m.zip` — podgląd modelu w oknie gry (`--speed 3` szybciej).
+- `.\watch.bat --model models\ppo_level1_4m.zip` — podgląd modelu w oknie gry (`--speed 3` szybciej).
 - `.\train.bat --timesteps 1000000` — trening bez grafiki, sam uruchamia 4 symulatory.
 - `.venv\Scripts\python.exe evaluate.py --model models\ppo_shoot_1m.zip` — 50 gier, porównanie z losowym graczem.
 - `.venv\Scripts\python.exe tests\test_sim.py <RogueLikeSim.exe> [RogueLikeGame.exe]` — testy integracyjne symulatora.
@@ -53,6 +60,7 @@ Pierwsze uruchomienie `.bat` tworzy `.venv` i instaluje zależności (`setup.bat
 - Obserwacja (`env/observation.py`): lokalny widok 11x11 wokół gracza plus wektor (wrogowie, cele, klucz, gotowość strzału).
 - 6 akcji: ruch w 4 strony, miecz, strzał z auto-celem w najbliższego wroga.
 - Z kluczem wskaźnik wyjścia prowadzi przez znane mapy do zamkniętych drzwi (`env/route.py`), z nagrodą-potencjałem za zbliżanie się.
+- Gdy z bieżącej mapy nie ma wyjścia na nową, wskaźnik prowadzi przez znane mapy do najbliższej mapy z nieodwiedzonym sąsiadem (jeszcze nie trenowane).
 - Trening równoległy na 4 grach: ok. 650 kroków/s na laptopie, ok. 1100 kroków/s na drugim komputerze.
 - Nagroda +5 za pierwsze wejście na wyższy poziom (`NEW_LEVEL`).
 - Najlepszy model: `models/ppo_level1_4m.zip` (`ppo_door_2m` + 2 mln kroków). W gicie są też `ppo_shoot_1m` i `ppo_door_2m`.
@@ -68,11 +76,12 @@ Model czyści mapę 0/1, zabija bossa na 0/4, bierze klucz, wraca na 0/0, otwier
 
 ## Co dalej
 
-1. **Główny problem:** każda gra kończy się limitem 3000 decyzji (`TimeLimit` w `train.py` i `evaluate.py`) gdzieś na poziomie 1. Sprawdzić, co blokuje dalej (klucz i drzwi na poziomie 1, czy `DoorRoute` działa tam tak samo), potem podnieść limit i trenować dalej.
-2. Błąd w grze: `Map.cpp` ok. linii 166, brak klamer po `if (... "locked" ...)`, więc `lockedDoors = true` na prawie każdej mapie. Tryb AI to omija (drzwi liczą się tylko z obiektem "door" z Tiled). Samej gry nie poprawiałem, bo to zmienia jej logikę.
-3. Drobny błąd w grze: powielone wyjście (27,6) na mapie 0/1, brakuje (27,7).
-4. Debug gry nie był przebudowany po ostatnich zmianach (Release: CTest 2/2, symulator 22/22 bez okna).
-5. Porządek: w gicie są śmieci `env/__pycache__/*.cpython-310.pyc`.
+1. **Główny problem:** model nie dochodzi do bossa. Poziom 1: 1/0 -> 1/1 -> {1/2, 1/3}, 1/3 -> 1/4 (boss 300 HP z flagą `win`, jego śmierć = wygrana), bez drzwi na klucz. Model po wyczyszczeniu 1/3 wraca na 1/1 mimo wskaźnika na 1/4, potem krążył 1/1 <-> 1/2 (to ma naprawić nowy wskaźnik). Następny krok: trening 2 mln kroków z limitem 6000 i ewaluacja.
+2. Na 1/2 model bardzo długo (ok. 2600 decyzji) zabija 3 słabych wrogów (typy 1, 2, 2). Sprawdzić po treningu, czy dalej tak jest.
+3. Błąd w grze: `Map.cpp` ok. linii 166, brak klamer po `if (... "locked" ...)`, więc `lockedDoors = true` na prawie każdej mapie. Tryb AI to omija (drzwi liczą się tylko z obiektem "door" z Tiled). Samej gry nie poprawiałem, bo to zmienia jej logikę.
+4. Drobny błąd w grze: powielone wyjście (27,6) na mapie 0/1, brakuje (27,7).
+5. Debug gry nie był przebudowany po ostatnich zmianach (Release: CTest 2/2, symulator 23/23 bez okna).
+6. Porządek: w gicie są śmieci `env/__pycache__/*.cpython-310.pyc`.
 
 ## Ważne decyzje i ustalenia
 
@@ -92,4 +101,5 @@ Model czyści mapę 0/1, zabija bossa na 0/4, bierze klucz, wraca na 0/0, otwier
 - Stare commity z linią Co-Authored zostają, tak zdecydował użytkownik.
 - Testy tylko bez okna gry (`test_sim.py` bez drugiego argumentu), okno gry tylko na prośbę lub za zgodą.
 - Na Windowsie Python 3.11 (3.10.0 ma błąd w `typing`, przez który nie działa gymnasium 1.4).
+- Na koniec dnia pracy Claude uzupełnia ten plik (sekcja „Ostatnia sesja”, „Co dalej”), commituje i pushuje oba repo, żeby dało się zacząć na laptopie albo PC.
 - Na starcie sesji użytkownik lubi najpierw zobaczyć model w akcji (`watch.bat`), a potem krótkie przypomnienie wyników.

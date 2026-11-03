@@ -6,15 +6,13 @@ import statistics
 from stable_baselines3 import PPO
 
 from env.paths import find_executable
-from env.roguelike_env import RogueLikeEnv
+from env.roguelike_env import MAX_EPISODE_STEPS, RogueLikeEnv
 from gymnasium.wrappers import TimeLimit
 from watch import newest_model
 
-MAX_STEPS = 3000
-
 
 def play(policy, port, episodes):
-    env = TimeLimit(RogueLikeEnv(port=port, sim_path=find_executable("RogueLikeSim")), max_episode_steps=MAX_STEPS)
+    env = TimeLimit(RogueLikeEnv(port=port, sim_path=find_executable("RogueLikeSim")), max_episode_steps=MAX_EPISODE_STEPS)
     rewards, steps, maps, kills, deaths, keys, doors, levels, wins = [], [], [], [], 0, 0, 0, 0, 0
     for _ in range(episodes):
         obs, _ = env.reset()

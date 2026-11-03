@@ -20,10 +20,11 @@ def _nearest(points, px, py):
     return min(points, key=lambda p: abs(p[0] - px) + abs(p[1] - py), default=None)
 
 
-def build_observation(state, visited_tiles, visited_maps, key_target=None):
+def build_observation(state, visited_tiles, visited_maps, key_target=None, explore_target=None):
     """Widok wokol gracza plus kierunki do celow; wszystkie wartosci w zakresie -1..1.
 
-    key_target: pole, do ktorego trzeba isc z kluczem (drzwi albo wyjscie w ich strone); zastepuje wskaznik wyjscia."""
+    key_target: pole, do ktorego trzeba isc z kluczem (drzwi albo wyjscie w ich strone); zastepuje wskaznik wyjscia.
+    explore_target: wyjscie w strone nieodwiedzonych map, uzywane gdy z biezacej mapy nie ma wyjscia na nowa."""
     px, py = state["playerX"], state["playerY"]
     grid = np.array(state["grid"], dtype=np.int8)
 
@@ -83,12 +84,14 @@ def build_observation(state, visited_tiles, visited_maps, key_target=None):
     vector += [1.0, *_relative(item, px, py)] if item else [0.0, 0.0, 0.0]
 
     # Wyjscie prowadzace na nieodwiedzona mape, a gdy takiego nie ma, dowolne; przy zamknietych drzwiach brak celu.
-    # Z kluczem zamiast tego droga do zamknietych drzwi.
+    # Z kluczem zamiast tego droga do zamknietych drzwi, a bez nowego wyjscia droga do nieodwiedzonych map.
     gateways = [] if doors_closed else state["gateways"]
     fresh = [(g["x"], g["y"]) for g in gateways if (g["level"], g["map"]) not in visited_maps]
     exit_tile = _nearest(fresh or [(g["x"], g["y"]) for g in gateways], px, py)
     if key_target:
         vector += [1.0, *_relative(key_target, px, py)]
+    elif gateways and not fresh and explore_target:
+        vector += [1.0, *_relative(explore_target, px, py)]
     else:
         vector += [float(bool(fresh)), *_relative(exit_tile, px, py)] if exit_tile else [0.0, 0.0, 0.0]
 

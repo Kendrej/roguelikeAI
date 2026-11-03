@@ -208,6 +208,19 @@ def test_route():
     ok &= route.target(back) is None
     check("droga z kluczem do zamknietych drzwi", ok)
 
+    # Poziom 1: 1/0 - 1/1 - {1/2, 1/3}, 1/3 - 1/4; z 1/2 i 1/1 droga ma prowadzic przez 1/3 do nieodwiedzonej 1/4
+    l10 = state((1, 0), (14, 11), [((1, 1), (14, 2))], key=False)
+    l11 = state((1, 1), (14, 11), [((1, 0), (14, 13)), ((1, 2), (23, 2)), ((1, 3), (2, 10))], key=False)
+    l13 = state((1, 3), (7, 7), [((1, 1), (27, 10)), ((1, 4), (14, 13))], key=False)
+    l12 = state((1, 2), (23, 11), [((1, 1), (23, 12))], key=False)
+    explore = DoorRoute()
+    for s in (l10, l11, l13, l12):
+        explore.update(s)
+    seen = {(1, 0), (1, 1), (1, 2), (1, 3)}
+    ok = (explore.explore_target(l12, seen) == (23, 12) and explore.explore_target(l11, seen) == (2, 10)
+          and explore.explore_target(l12, seen | {(1, 4)}) is None)
+    check("droga do nieodwiedzonych map", ok)
+
 
 def test_observation():
     import numpy as np
