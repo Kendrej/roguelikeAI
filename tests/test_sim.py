@@ -77,7 +77,9 @@ def test_protocol():
     check("zle polecenie", c.raw("xyz") == "unknown_command")
     check("akcja spoza zakresu", c.raw("9") == "unknown_command")
     state = c.rq("reset")
-    check("wersja protokolu", state["protocol"] == 4)
+    check("wersja protokolu", state["protocol"] == 5)
+    check("zamkniete drzwi na mapie startowej", state["lockedDoor"] and state["grid"][state["lockedDoorY"] - 1][state["lockedDoorX"]] == 3,
+          f"({state['lockedDoorX']},{state['lockedDoorY']})")
     check("rozmiar siatki", len(state["grid"]) == 16 and len(state["grid"][0]) == 30)
     check("5 slotow wrogow", len(state["enemies"]) == 5)
     c.rq("quit")
@@ -168,16 +170,42 @@ def test_events():
 def test_rewards():
     zero = {k: 0 for k in ("keysPicked", "keysUsed", "enemiesKilled", "damageDealt", "hpDelta", "newTiles", "mapsChanged", "roomsCleared")}
 
-    def reward(won=False, alive=True, new_map=False, **events):
-        return compute_reward({"events": {**zero, **events}, "won": won, "alive": alive}, new_map) - rewards.STEP_PENALTY
+    def reward(won=False, alive=True, new_map=False, key_progress=0.0, **events):
+        return compute_reward({"events": {**zero, **events}, "won": won, "alive": alive}, new_map, key_progress) - rewards.STEP_PENALTY
 
     ok = all(abs(a - b) < 1e-6 for a, b in [
         (reward(keysPicked=1), rewards.KEY_PICKED), (reward(keysUsed=1), rewards.KEY_USED),
         (reward(enemiesKilled=1), rewards.ENEMY_KILLED), (reward(roomsCleared=1), rewards.ROOM_CLEARED), (reward(damageDealt=4), 4 * rewards.DAMAGE_DEALT),
         (reward(hpDelta=-4), -4 * rewards.HP_CHANGE), (reward(newTiles=1), rewards.NEW_TILE),
         (reward(new_map=True), rewards.NEW_MAP), (reward(mapsChanged=1), 0.0),
-        (reward(won=True), rewards.GAME_WON), (reward(alive=False), rewards.PLAYER_DIED)])
+        (reward(won=True), rewards.GAME_WON), (reward(alive=False), rewards.PLAYER_DIED),
+        (reward(key_progress=1.0), rewards.KEY_ROUTE)])
     check("nagrody zgodne z tabela", ok)
+
+
+def test_route():
+    from env.route import DoorRoute
+
+    def state(level_map, pos, gateways, key, locked=False):
+        return {"level": level_map[0], "map": level_map[1], "playerX": pos[0], "playerY": pos[1], "key": key,
+                "lockedDoor": locked, "lockedDoorX": 14 if locked else -1, "lockedDoorY": 3 if locked else -1,
+                "gateways": [{"level": l, "map": m, "x": x, "y": y} for (l, m), (x, y) in gateways]}
+
+    # 0/0 (drzwi) <-> 0/1 <-> 0/4, jak na pierwszym poziomie
+    start = state((0, 0), (3, 3), [((0, 1), (1, 6)), ((1, 0), (13, 1))], key=False, locked=True)
+    middle = state((0, 1), (20, 7), [((0, 0), (28, 6)), ((0, 4), (2, 8))], key=True)
+    far = state((0, 4), (10, 10), [((0, 1), (27, 7))], key=True)
+    route = DoorRoute()
+    for s in (start, middle, far):
+        route.update(s)
+    back = {**start, "key": True, "playerX": 4, "playerY": 3}
+    ok = (route.target({**far, "key": False}) is None and route.potential({**far, "key": False}) is None
+          and route.target(far) == (27, 7) and abs(route.potential(far) + 2 + 20 / 46) < 1e-9
+          and route.target(middle) == (28, 6) and abs(route.potential(middle) + 1 + 9 / 46) < 1e-9
+          and route.target(back) == (14, 3) and abs(route.potential(back) + 10 / 46) < 1e-9)
+    route.update({**back, "lockedDoor": False})
+    ok &= route.target(back) is None
+    check("droga z kluczem do zamknietych drzwi", ok)
 
 
 def test_observation():
@@ -264,6 +292,7 @@ def test_bot(max_steps=60000, seed=6):
     rng = random.Random(seed)
     totals = {}
     maps = set()
+    locked_maps = set()
     visited = {}
     state = c.rq("reset")
     won = False
@@ -271,6 +300,8 @@ def test_bot(max_steps=60000, seed=6):
     for _ in range(max_steps):
         pos = (state["playerX"], state["playerY"])
         maps.add(state["map"])
+        if state["lockedDoor"]:
+            locked_maps.add((state["level"], state["map"]))
         seen = visited.setdefault(state["map"], set())
         seen.add(pos)
         enemies = [(e["x"], e["y"]) for e in state["enemies"] if e["hp"] > 0]
@@ -302,7 +333,7 @@ def test_bot(max_steps=60000, seed=6):
             deaths += 1
             state = c.rq("reset")
     c.close()
-    return totals, maps, won, deaths
+    return totals, maps, won, deaths, locked_maps
 
 
 def test_windowed():
@@ -325,6 +356,7 @@ if __name__ == "__main__":
     SIM = os.path.abspath(sys.argv[1])
     GAME = os.path.abspath(sys.argv[2]) if len(sys.argv) > 2 else None
     test_rewards()
+    test_route()
     test_observation()
     test_protocol()
     test_lockstep()
@@ -333,10 +365,11 @@ if __name__ == "__main__":
     test_events()
     if GAME:
         test_windowed()
-    totals, maps, won, deaths = test_bot()
+    totals, maps, won, deaths, locked_maps = test_bot()
     print("bot:", totals, "mapy", sorted(maps), "wygrana", won, "smierci", deaths)
     check("bot zabija wrogow i zmienia mapy", totals.get("enemiesKilled", 0) > 0 and totals.get("mapsChanged", 0) > 0)
     check("bot czysci pokoje", totals.get("roomsCleared", 0) > 0)
+    check("drzwi na klucz zglaszane tylko na mapie 0/0", locked_maps == {(0, 0)}, f"{sorted(locked_maps)}")
     test_memory()
     print(f"{sum(RESULTS)}/{len(RESULTS)} OK")
     sys.exit(0 if all(RESULTS) else 1)

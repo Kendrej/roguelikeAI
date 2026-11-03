@@ -1,6 +1,6 @@
 # HANDOFF: roguelikeAI
 
-Stan na 2026-11-03. Ten plik zastępuje pamięć Claude z laptopa, której nie ma na innym komputerze.
+Stan na 2026-11-03 (wieczór, drugi komputer). Ten plik zastępuje pamięć Claude z laptopa, której nie ma na innym komputerze.
 
 ## Cel
 
@@ -38,7 +38,7 @@ Powstaje `build/win-ninja-release/bin/RogueLikeGame.exe` (okno) i `RogueLikeSim.
 
 W `roguelikeAI` (w PowerShellu z `.\`):
 
-- `.\watch.bat --model models\ppo_shoot_1m.zip` — podgląd modelu w oknie gry (`--speed 3` szybciej).
+- `.\watch.bat --model models\ppo_door_2m.zip` — podgląd modelu w oknie gry (`--speed 3` szybciej).
 - `.\train.bat --timesteps 1000000` — trening bez grafiki, sam uruchamia 4 symulatory.
 - `.venv\Scripts\python.exe evaluate.py --model models\ppo_shoot_1m.zip` — 50 gier, porównanie z losowym graczem.
 - `.venv\Scripts\python.exe tests\test_sim.py <RogueLikeSim.exe> [RogueLikeGame.exe]` — testy integracyjne symulatora.
@@ -49,26 +49,29 @@ Pierwsze uruchomienie `.bat` tworzy `.venv` i instaluje zależności (`setup.bat
 ## Co zrobione
 
 - Symulator bez grafiki w grze (`src/ai`), z tego samego kodu korzysta `RogueLikeGame --ai-mode`. Stały krok 1/60 s, 4 klatki na decyzję.
-- Protokół 4: gra zgłasza surowe zdarzenia (klucze, zabicia, wyczyszczone pokoje, obrażenia, nowe pola), a nagrodę liczy Python w `env/rewards.py`.
+- Protokół 5: gra zgłasza surowe zdarzenia (klucze, zabicia, wyczyszczone pokoje, obrażenia, nowe pola) i pozycję zamkniętych drzwi (`lockedDoorX/Y`), a nagrodę liczy Python w `env/rewards.py`.
 - Obserwacja (`env/observation.py`): lokalny widok 11x11 wokół gracza plus wektor (wrogowie, cele, klucz, gotowość strzału).
 - 6 akcji: ruch w 4 strony, miecz, strzał z auto-celem w najbliższego wroga.
-- Trening równoległy na 4 grach, ok. 650 kroków/s na 8 wątkach.
-- Najlepszy model: `models/ppo_shoot_1m.zip` (1 mln kroków), jedyny model w gicie.
+- Z kluczem wskaźnik wyjścia prowadzi przez znane mapy do zamkniętych drzwi (`env/route.py`), z nagrodą-potencjałem za zbliżanie się.
+- Trening równoległy na 4 grach: ok. 650 kroków/s na laptopie, ok. 1100 kroków/s na drugim komputerze.
+- Najlepszy model: `models/ppo_door_2m.zip` (`ppo_shoot_1m` + 1 mln kroków). W gicie są oba.
 
-| | losowy gracz | model |
-|---|---|---|
-| średnia nagroda | 2,4 | **26,5** |
-| podniesione klucze (50 gier) | 0 | **47** |
-| wygrane | 0 | 0 |
+| | losowy gracz | ppo_shoot_1m | ppo_door_2m |
+|---|---|---|---|
+| średnia nagroda | 2,4 | 26,5 | **35,3** |
+| podniesione klucze (50 gier) | 0 | 47 | 47 |
+| otwarte drzwi (50 gier) | 0 | 0 | **47** |
+| wygrane | 0 | 0 | 0 |
 
-Model czyści mapę 0/1, przechodzi na 0/4, zabija bossa i bierze klucz. Szczegóły w `RESULTS.md`.
+Model czyści mapę 0/1, zabija bossa na 0/4, bierze klucz, wraca na 0/0 i otwiera drzwi. Szczegóły w `RESULTS.md`.
 
 ## Co dalej
 
-1. **Główny problem:** model nie wraca z kluczem do zamkniętych drzwi na mapie 0/0, więc nie wchodzi na kolejny poziom. Wskaźnik wyjścia w obserwacji kieruje tylko na nieodwiedzone mapy. Pomysł: wskazówka w obserwacji lub nagrodzie, że z kluczem trzeba iść do zamkniętych drzwi, potem dłuższy trening.
-2. Drobny błąd w grze: powielone wyjście (27,6) na mapie 0/1.
-3. Debug gry nie był przebudowany po ostatnich zmianach (Release: CTest 2/2, symulator 20/20).
-4. Porządek: w gicie są śmieci `env/__pycache__/*.cpython-310.pyc`.
+1. **Główny problem:** po otwarciu drzwi model nie wchodzi na poziom 1 (wyjście (13-14,1), 2 pola nad drzwiami), tylko idzie na nieodwiedzoną mapę 0/3. Wskaźnik pokazuje wyjście na poziom 1, ale model nie miał jeszcze okazji się tego nauczyć. Pomysł: dłuższy trening, ewentualnie większa nagroda za nowy poziom.
+2. Błąd w grze: `Map.cpp` ok. linii 166, brak klamer po `if (... "locked" ...)`, więc `lockedDoors = true` na prawie każdej mapie. Tryb AI to omija (drzwi liczą się tylko z obiektem "door" z Tiled). Samej gry nie poprawiałem, bo to zmienia jej logikę.
+3. Drobny błąd w grze: powielone wyjście (27,6) na mapie 0/1, brakuje (27,7).
+4. Debug gry nie był przebudowany po ostatnich zmianach (Release: CTest 2/2, symulator 22/22 bez okna).
+5. Porządek: w gicie są śmieci `env/__pycache__/*.cpython-310.pyc`.
 
 ## Ważne decyzje i ustalenia
 
@@ -86,4 +89,6 @@ Model czyści mapę 0/1, przechodzi na 0/4, zabija bossa i bierze klucz. Szczeg�
 - Commity Claude może robić sam, ale **bez** `Co-Authored-By` i innych oznaczeń Claude. Push tylko na prośbę.
 - W `RogueLikeGame`: pushuj na `kendrej` (fork). `origin` to repo `erybie222`, tam nic nie wysyłaj.
 - Stare commity z linią Co-Authored zostają, tak zdecydował użytkownik.
+- Testy tylko bez okna gry (`test_sim.py` bez drugiego argumentu), okno gry tylko na prośbę lub za zgodą.
+- Na Windowsie Python 3.11 (3.10.0 ma błąd w `typing`, przez który nie działa gymnasium 1.4).
 - Na starcie sesji użytkownik lubi najpierw zobaczyć model w akcji (`watch.bat`), a potem krótkie przypomnienie wyników.

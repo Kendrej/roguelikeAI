@@ -1,6 +1,7 @@
 STEP_PENALTY = -0.001
 KEY_PICKED = 2.0
-KEY_USED = 2.0
+KEY_USED = 5.0
+KEY_ROUTE = 1.0  # za kazde przejscie blizej zamknietych drzwi z kluczem; cofanie odbiera tyle samo
 ENEMY_KILLED = 1.0
 ROOM_CLEARED = 3.0
 DAMAGE_DEALT = 0.01
@@ -11,10 +12,12 @@ GAME_WON = 10.0
 PLAYER_DIED = -1.0
 
 
-def compute_reward(state, entered_new_map):
-    """entered_new_map tylko za pierwsze wejscie, zeby chodzenie tam i z powrotem sie nie oplacalo."""
+def compute_reward(state, entered_new_map, key_progress=0.0):
+    """entered_new_map tylko za pierwsze wejscie, zeby chodzenie tam i z powrotem sie nie oplacalo.
+
+    key_progress: zmiana potencjalu drogi do drzwi (DoorRoute.potential), wiec krazenie nic nie daje."""
     events = state["events"]
-    reward = STEP_PENALTY
+    reward = STEP_PENALTY + key_progress * KEY_ROUTE
     reward += events["keysPicked"] * KEY_PICKED
     reward += events["keysUsed"] * KEY_USED
     reward += events["enemiesKilled"] * ENEMY_KILLED
